@@ -1,21 +1,23 @@
-# MetricMind
-metricmind/
-├── dbt/                  # Governed data modeling (raw → staging → mart)
-│   ├── seeds/raw_transactions.csv   # mock Q3 vs Q4 2025 data — margins really do drop
-│   ├── models/staging/stg_transactions.sql
-│   └── models/marts/fct_revenue_margin.sql   # the single source of truth for margin
-├── semantic-layer/       # Cube.dev — the ONLY thing the agent is allowed to query
-│   ├── cube.js
-│   └── schema/{Revenue,Margin}.js
-├── agent/                 # LangChain orchestrator + FastAPI wrapper
-│   ├── orchestrator.py
-│   ├── app.py
-│   ├── tools/semantic_api_tool.py   # governance allow-list lives here
-│   └── prompts/system_prompt.txt
-├── web/                   # Next.js chat UI
-│   └── app/chat, components/ChatWindow.tsx
-├── tests/
-│   ├── governance_audit.py          # same question -> same number
-│   └── api_translation_tests.py     # governance boundary unit tests
-├── docker-compose.yml
-└── Makefile
+git clone https://github.com/<your-username>/metricmind.git
+cd metricmind
+cp .env.example .env               # add your ANTHROPIC_API_KEY or OPENAI_API_KEY
+
+# 1) Build the governed marts (verified working — DuckDB, zero setup)
+cd dbt && pip install dbt-duckdb
+DBT_PROFILES_DIR=. dbt seed
+DBT_PROFILES_DIR=. dbt run
+DBT_PROFILES_DIR=. dbt test
+cd ..
+
+# 2) Start the semantic layer (Cube.dev), pointed at the DuckDB file above
+cd semantic-layer && cp .env.example .env && npm install && npm run dev
+# → http://localhost:4000
+
+# 3) Start the agent API (new terminal)
+cd agent && pip install -r requirements.txt
+uvicorn app:app --reload --port 8000
+# → http://localhost:8000/chat
+
+# 4) Start the chat UI (new terminal)
+cd web && cp .env.local.example .env.local && npm install && npm run dev
+# → http://localhost:3000/chat
